@@ -3,9 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hello World</title>
+  <title>Hello World - 本机 CPU 温度</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .temp-card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 16px;
+      padding: 24px 48px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .temp-value {
+      font-size: 4rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .temp-label {
+      font-size: 1rem;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+    .temp-status {
+      font-size: 0.9rem;
+      opacity: 0.75;
+      margin-top: 12px;
+      min-height: 1.2em;
+    }
+    .temp-status.error {
+      color: #ffd166;
+    }
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+    .dot.off {
+      background: #f87171;
+      animation: none;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
 </head>
 <body>
   <h1>hello world！</h1>
+  <div class="temp-card">
+    <div class="temp-value" id="tempValue">--</div>
+    <div class="temp-label">本机 CPU 温度</div>
+    <div class="temp-status" id="tempStatus"><span class="dot off"></span>正在连接本地温度服务…</div>
+  </div>
+  <script>
+    // 浏览器出于安全限制无法直接读取本机硬件温度，
+    // 因此需要在本机运行 cpu_temp_server.py（端口 8765），
+    // 本页面每 2 秒从该服务拉取一次实时温度。
+    const TEMP_API = "http://localhost:8765/api/temp";
+    const valueEl = document.getElementById("tempValue");
+    const statusEl = document.getElementById("tempStatus");
+
+    async function fetchTemp() {
+      try {
+        const res = await fetch(TEMP_API, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.celsius === null || data.celsius === undefined) {
+          throw new Error("no data");
+        }
+        valueEl.textContent = data.celsius + "°C";
+        statusEl.innerHTML = '<span class="dot"></span>实时更新中 · ' + data.source;
+        statusEl.classList.remove("error");
+      } catch (e) {
+        valueEl.textContent = "--";
+        statusEl.innerHTML = '<span class="dot off"></span>本地温度服务未启动，请运行 cpu_temp_server.py';
+        statusEl.classList.add("error");
+      }
+    }
+
+    fetchTemp();
+    setInterval(fetchTemp, 2000);
+  </script>
 </body>
 </html>
